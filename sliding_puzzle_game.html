@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>九宫格华容道游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-size: 32px;
+        }
+
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .timer {
+            background: rgba(255, 107, 107, 0.2);
+            border: 2px solid #ff6b6b;
+        }
+
+        .timer.active {
+            background: rgba(76, 222, 128, 0.2);
+            border: 2px solid #4ade80;
+        }
+
+        .moves {
+            background: rgba(78, 205, 196, 0.2);
+            border: 2px solid #4ecdc4;
+        }
+
+        .score {
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px solid #ffd700;
+        }
+
+        .puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            aspect-ratio: 1;
+        }
+
+        .tile {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .tile:hover:not(.empty) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .tile:active:not(.empty) {
+            transform: translateY(-1px);
+        }
+
+        .tile.empty {
+            background: transparent;
+            box-shadow: none;
+            cursor: default;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        .tile.movable {
+            cursor: grab;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .tile.movable:hover {
+            filter: brightness(1.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            color: white;
+        }
+
+        .btn-new {
+            background: #4ecdc4;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-new:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
+        }
+
+        .btn-hint {
+            background: #ffd700;
+            color: #333;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-hint:hover {
+            background: #ffed4e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .score-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .score-label {
+            font-size: 18px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .score-value {
+            font-size: 48px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .score-breakdown {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            padding-top: 15px;
+            line-height: 1.8;
+        }
+
+        .modal-button {
+            background: #4ecdc4;
+            color: white;
+            padding: 12px 30px;
+            margin-top: 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .modal-button:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .difficulty-btn {
+            padding: 8px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .difficulty-btn.active {
+            background: #4ecdc4;
+            border-color: #4ecdc4;
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.5);
+        }
+
+        .difficulty-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 600px) {
+            .stats-panel {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                padding: 15px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+
+            .stat-label {
+                font-size: 10px;
+            }
+
+            .tile {
+                font-size: 24px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .modal-content {
+                padding: 30px 20px;
+                max-width: 90%;
+            }
+
+            .score-value {
+                font-size: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 华容道游戏</h1>
+        
+        <!-- 难度选择 -->
+        <div class="difficulty-selector">
+            <button class="difficulty-btn active" onclick="setDifficulty('easy')">简单</button>
+            <button class="difficulty-btn" onclick="setDifficulty('normal')">普通</button>
+            <button class="difficulty-btn" onclick="setDifficulty('hard')">困难</button>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="stats-panel">
+            <div class="stat-item timer">
+                <div class="stat-label">⏱️ 时间</div>
+                <div class="stat-value" id="timerDisplay">00:00</div>
+            </div>
+            <div class="stat-item moves">
+                <div class="stat-label">🎯 步数</div>
+                <div class="stat-value" id="movesDisplay">0</div>
+            </div>
+            <div class="stat-item score">
+                <div class="stat-label">⭐ 得分</div>
+                <div class="stat-value" id="scoreDisplay">0</div>
+            </div>
+        </div>
+
+        <!-- 游戏板 -->
+        <div class="puzzle-board" id="puzzleBoard"></div>
+
+        <!-- 控制按钮 -->
+        <div class="controls">
+            <button class="btn-new" onclick="newGame()">新游戏</button>
+            <button class="btn-hint" onclick="showHint()">提示</button>
+        </div>
+    </div>
+
+    <!-- 完成模态框 -->
+    <div class="modal" id="completionModal">
+        <div class="modal-content">
+            <div class="modal-title">🎉 恭喜！游戏完成！</div>
+            <div class="score-display">
+                <div class="score-label">你的得分</div>
+                <div class="score-value" id="finalScore">0</div>
+                <div class="score-breakdown" id="scoreBreakdown"></div>
+            </div>
+            <button class="modal-button" onclick="newGame()">再玩一局</button>
+        </div>
+    </div>
+
+    <script>
+        class SlidingPuzzleGame {
+            constructor() {
+                this.tiles = [];
+                this.emptyIndex = 8;
+                this.moves = 0;
+                this.startTime = null;
+                this.timerInterval = null;
+                this.isGameActive = false;
+                this.difficulty = 'normal';
+                this.difficultySettings = {
+                    easy: { shuffles: 30, scoreMultiplier: 1.0 },
+                    normal: { shuffles: 100, scoreMultiplier: 1.5 },
+                    hard: { shuffles: 200, scoreMultiplier: 2.0 }
+                };
+                this.initGame();
+            }
+
+            initGame() {
+                this.createTiles();
+                this.shuffleTiles();
+                this.renderBoard();
+                this.startTimer();
+                this.isGameActive = true;
+            }
+
+            createTiles() {
+                this.tiles = [];
+                for (let i = 0; i < 9; i++) {
+                    this.tiles.push(i === 8 ? 0 : i + 1);
+                }
+                this.emptyIndex = 8;
+            }
+
+            shuffleTiles() {
+                const settings = this.difficultySettings[this.difficulty];
+                const shuffles = settings.shuffles;
+
+                for (let i = 0; i < shuffles; i++) {
+                    const movableIndexes = this.getMovableIndexes();
+                    const randomIndex = movableIndexes[Math.floor(Math.random() * movableIndexes.length)];
+                    [this.tiles[this.emptyIndex], this.tiles[randomIndex]] = 
+                    [this.tiles[randomIndex], this.tiles[this.emptyIndex]];
+                    this.emptyIndex = randomIndex;
+                }
+                this.moves = 0;
+                this.updateDisplay();
+            }
+
+            getMovableIndexes() {
+                const movable = [];
+                const row = Math.floor(this.emptyIndex / 3);
+                const col = this.emptyIndex % 3;
+
+                // 上
+                if (row > 0) movable.push(this.emptyIndex - 3);
+                // 下
+                if (row < 2) movable.push(this.emptyIndex + 3);
+                // 左
+                if (col > 0) movable.push(this.emptyIndex - 1);
+                // 右
+                if (col < 2) movable.push(this.emptyIndex + 1);
+
+                return movable;
+            }
+
+            renderBoard() {
+                const board = document.getElementById('puzzleBoard');
+                board.innerHTML = '';
+
+                this.tiles.forEach((number, index) => {
+                    const tile = document.createElement('button');
+                    tile.className = 'tile';
+                    
+                    if (number === 0) {
+                        tile.classList.add('empty');
+                        tile.disabled = true;
+                    } else {
+                        tile.textContent = number;
+                        tile.classList.add('movable');
+                        tile.onclick = () => this.moveTile(index);
+                    }
+
+                    board.appendChild(tile);
+                });
+            }
+
+            moveTile(index) {
+                if (!this.isGameActive) return;
+
+                const movableIndexes = this.getMovableIndexes();
+                if (!movableIndexes.includes(index)) return;
+
+                [this.tiles[this.emptyIndex], this.tiles[index]] = 
+                [this.tiles[index], this.tiles[this.emptyIndex]];
+                this.emptyIndex = index;
+                this.moves++;
+
+                this.renderBoard();
+                this.updateDisplay();
+                this.checkCompletion();
+            }
+
+            checkCompletion() {
+                for (let i = 0; i < 8; i++) {
+                    if (this.tiles[i] !== i + 1) return;
+                }
+                if (this.tiles[8] !== 0) return;
+
+                this.completeGame();
+            }
+
+            completeGame() {
+                this.isGameActive = false;
+                clearInterval(this.timerInterval);
+
+                const elapsedTime = Math.floor((Date.now() - this.startTime) / 1000);
+                const score = this.calculateScore(elapsedTime);
+
+                this.showCompletion(score, elapsedTime);
+            }
+
+            calculateScore(elapsedTime) {
+                const baseScore = 1000;
+                const timeBonus = Math.max(0, 300 - elapsedTime); // 最多300秒
+                const movesPenalty = this.moves * 5;
+                const difficultyMultiplier = this.difficultySettings[this.difficulty].scoreMultiplier;
+
+                const totalScore = Math.round((baseScore + timeBonus - movesPenalty) * difficultyMultiplier);
+                return Math.max(100, totalScore);
+            }
+
+            showCompletion(score, elapsedTime) {
+                const modal = document.getElementById('completionModal');
+                document.getElementById('finalScore').textContent = score;
+
+                const minutes = Math.floor(elapsedTime / 60);
+                const seconds = elapsedTime % 60;
+                const timeStr = `${minutes}分${seconds}秒`;
+
+                document.getElementById('scoreBreakdown').innerHTML = `
+                    <div>基础分: 1000</div>
+                    <div>时间奖励: +${Math.max(0, 300 - elapsedTime)}</div>
+                    <div>步数惩罚: -${this.moves * 5}</div>
+                    <div>难度倍数: ×${this.difficultySettings[this.difficulty].scoreMultiplier}</div>
+                    <div style="margin-top: 10px; font-weight: bold;">用时: ${timeStr}</div>
+                `;
+
+                modal.classList.add('show');
+            }
+
+            startTimer() {
+                this.startTime = Date.now();
+                this.timerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    document.getElementById('timerDisplay').textContent = 
+                        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }, 100);
+            }
+
+            updateDisplay() {
+                document.getElementById('movesDisplay').textContent = this.moves;
+            }
+
+            setDifficulty(level) {
+                this.difficulty = level;
+            }
+
+            showHint() {
+                if (!this.isGameActive) return;
+                alert(`提示: 你已用 ${this.moves} 步，共需要 ${9 - 1} 个位置正确排列。\n继续加油！`);
+            }
+
+            reset() {
+                clearInterval(this.timerInterval);
+                this.createTiles();
+                this.shuffleTiles();
+                this.renderBoard();
+                this.startTimer();
+                this.isGameActive = true;
+                document.getElementById('completionModal').classList.remove('show');
+            }
+        }
+
+        let game;
+
+        function initializeGame() {
+            game = new SlidingPuzzleGame();
+        }
+
+        function newGame() {
+            if (game) {
+                game.reset();
+            } else {
+                initializeGame();
+            }
+        }
+
+        function setDifficulty(level) {
+            if (game && game.isGameActive) {
+                alert('游戏进行中，请先完成或开始新游戏');
+                return;
+            }
+
+            // 更新按钮状态
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            if (game) {
+                game.setDifficulty(level);
+                game.reset();
+            } else {
+                // 第一次初始化时设置难度
+                game = new SlidingPuzzleGame();
+                game.difficulty = level;
+                game.reset();
+            }
+        }
+
+        function showHint() {
+            if (game) {
+                game.showHint();
+            }
+        }
+
+        // 页面加载时初始化游戏
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeGame();
+        });
+    </script>
+</body>
+</html>
