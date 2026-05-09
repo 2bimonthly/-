@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3x3 九宫格拼图游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-wrapper {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            gap: 5px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .puzzle-piece {
+            width: 120px;
+            height: 120px;
+            cursor: grab;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            background-size: 360px 360px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+            position: relative;
+        }
+
+        .puzzle-piece:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        .puzzle-piece.dragging {
+            cursor: grabbing;
+            opacity: 0.7;
+            z-index: 1000;
+        }
+
+        .puzzle-slot {
+            width: 120px;
+            height: 120px;
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .puzzle-slot.correct {
+            border: 2px solid #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+        }
+
+        .puzzle-slot.filled {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .pieces-pool {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 280px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .pieces-pool h3 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .pieces-container {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            gap: 8px;
+        }
+
+        .piece-item {
+            width: 80px;
+            height: 80px;
+            cursor: grab;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            background-size: 240px 240px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+        }
+
+        .piece-item:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .piece-item.dragging {
+            cursor: grabbing;
+            opacity: 0.7;
+            z-index: 1000;
+        }
+
+        .piece-item.used {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-reset {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-hint {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .btn-hint:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
+        }
+
+        .stats {
+            margin-top: 20px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .progress {
+            margin: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .completion-message {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(74, 222, 128, 0.95);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 15px;
+            font-size: 32px;
+            font-weight: bold;
+            z-index: 10000;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: popIn 0.5s ease-out;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .game-wrapper {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .puzzle-board {
+                grid-template-columns: repeat(3, 100px);
+            }
+
+            .puzzle-piece {
+                width: 100px;
+                height: 100px;
+                background-size: 300px 300px;
+            }
+
+            .puzzle-slot {
+                width: 100px;
+                height: 100px;
+            }
+
+            .pieces-container {
+                grid-template-columns: repeat(3, 70px);
+            }
+
+            .piece-item {
+                width: 70px;
+                height: 70px;
+                background-size: 210px 210px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧩 3x3 九宫格拼图游戏</h1>
+        
+        <div class="game-wrapper">
+            <!-- 拼图板 -->
+            <div>
+                <div class="puzzle-board" id="puzzleBoard"></div>
+            </div>
+
+            <!-- 碎片池 -->
+            <div class="pieces-pool">
+                <h3>拖拽碎片到左侧</h3>
+                <div class="pieces-container" id="piecesPool"></div>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="stats">
+            <div class="progress">进度: <span id="progress">0</span>/9</div>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="controls">
+            <button class="btn-reset" onclick="resetPuzzle()">重新开始</button>
+            <button class="btn-hint" onclick="showHint()">提示</button>
+        </div>
+
+        <!-- 完成提示 -->
+        <div class="completion-message" id="completionMessage">
+            🎉 恭喜！拼图完成！
+        </div>
+    </div>
+
+    <script>
+        // 示例图片 URL（使用 data URL 创建示例图片）
+        const imageUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360"><defs><linearGradient id="grad1"><stop offset="0%25" style="stop-color:rgb(102,126,234);stop-opacity:1" /><stop offset="100%25" style="stop-color:rgb(118,75,162);stop-opacity:1" /></linearGradient></defs><rect width="360" height="360" fill="url(%23grad1)"/><circle cx="90" cy="90" r="40" fill="%23fff" opacity="0.3"/><circle cx="270" cy="90" r="50" fill="%23ffd700" opacity="0.4"/><circle cx="180" cy="180" r="60" fill="%234ecdc4" opacity="0.3"/><circle cx="90" cy="270" r="45" fill="%23ff6b6b" opacity="0.3"/><circle cx="270" cy="270" r="55" fill="%2395e1d3" opacity="0.3"/><polygon points="180,30 210,80 160,80" fill="%23fff" opacity="0.2"/><text x="180" y="340" font-size="30" fill="white" text-anchor="middle" opacity="0.5">拼图游戏</text></svg>';
+
+        class PuzzleGame {
+            constructor() {
+                this.pieces = [];
+                this.slots = [];
+                this.draggedPiece = null;
+                this.draggedOffset = { x: 0, y: 0 };
+                this.completedSlots = 0;
+                this.initGame();
+            }
+
+            initGame() {
+                this.createSlots();
+                this.createPieces();
+                this.shufflePieces();
+            }
+
+            createSlots() {
+                const board = document.getElementById('puzzleBoard');
+                board.innerHTML = '';
+                this.slots = [];
+
+                for (let i = 0; i < 9; i++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'puzzle-slot';
+                    slot.id = `slot-${i}`;
+                    slot.dataset.index = i;
+                    
+                    slot.addEventListener('dragover', (e) => this.handleDragOver(e, i));
+                    slot.addEventListener('drop', (e) => this.handleDrop(e, i));
+                    slot.addEventListener('dragleave', (e) => this.handleDragLeave(e, i));
+
+                    board.appendChild(slot);
+                    this.slots.push({
+                        element: slot,
+                        index: i,
+                        piece: null
+                    });
+                }
+            }
+
+            createPieces() {
+                const pool = document.getElementById('piecesPool');
+                pool.innerHTML = '';
+                this.pieces = [];
+
+                for (let i = 0; i < 9; i++) {
+                    const piece = document.createElement('div');
+                    piece.className = 'piece-item';
+                    piece.id = `piece-${i}`;
+                    piece.dataset.index = i;
+                    
+                    const row = Math.floor(i / 3);
+                    const col = i % 3;
+                    piece.style.backgroundImage = `url('${imageUrl}')`;
+                    piece.style.backgroundPosition = `${-col * 240}px ${-row * 240}px`;
+
+                    piece.draggable = true;
+                    piece.addEventListener('dragstart', (e) => this.handleDragStart(e, i));
+                    piece.addEventListener('dragend', (e) => this.handleDragEnd(e));
+
+                    pool.appendChild(piece);
+                    this.pieces.push({
+                        element: piece,
+                        index: i,
+                        placed: false
+                    });
+                }
+            }
+
+            shufflePieces() {
+                const pieces = Array.from(document.querySelectorAll('.piece-item'));
+                for (let i = pieces.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    const parent = pieces[i].parentNode;
+                    const temp = pieces[i];
+                    parent.insertBefore(pieces[j], temp);
+                    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+                }
+            }
+
+            handleDragStart(e, index) {
+                const piece = this.pieces[index];
+                if (piece.placed) {
+                    e.preventDefault();
+                    return;
+                }
+
+                this.draggedPiece = index;
+                e.target.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', e.target.innerHTML);
+            }
+
+            handleDragEnd(e) {
+                e.target.classList.remove('dragging');
+            }
+
+            handleDragOver(e, slotIndex) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            }
+
+            handleDragLeave(e, slotIndex) {
+                e.currentTarget.style.backgroundColor = '';
+            }
+
+            handleDrop(e, slotIndex) {
+                e.preventDefault();
+                e.currentTarget.style.backgroundColor = '';
+
+                if (this.draggedPiece === null) return;
+
+                const slot = this.slots[slotIndex];
+                const piece = this.pieces[this.draggedPiece];
+
+                // 检查是否放在正确的位置
+                if (piece.index === slotIndex) {
+                    // 正确位置
+                    if (slot.piece) {
+                        // 替换已有的碎片
+                        slot.piece.placed = false;
+                        slot.piece.element.classList.remove('used');
+                    }
+
+                    slot.piece = piece;
+                    piece.placed = true;
+                    piece.element.classList.add('used');
+
+                    // 创建放在板上的碎片副本
+                    if (!slot.element.querySelector('.puzzle-piece')) {
+                        const boardPiece = document.createElement('div');
+                        boardPiece.className = 'puzzle-piece';
+                        boardPiece.style.backgroundImage = `url('${imageUrl}')`;
+                        
+                        const row = Math.floor(slotIndex / 3);
+                        const col = slotIndex % 3;
+                        boardPiece.style.backgroundPosition = `${-col * 120}px ${-row * 120}px`;
+                        
+                        slot.element.appendChild(boardPiece);
+                    }
+
+                    slot.element.classList.add('correct', 'filled');
+                    this.completedSlots++;
+                    this.updateProgress();
+
+                    if (this.completedSlots === 9) {
+                        this.showCompletion();
+                    }
+                }
+
+                this.draggedPiece = null;
+            }
+
+            updateProgress() {
+                document.getElementById('progress').textContent = this.completedSlots;
+            }
+
+            showCompletion() {
+                const message = document.getElementById('completionMessage');
+                message.style.display = 'block';
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 3000);
+            }
+
+            reset() {
+                this.completedSlots = 0;
+                this.pieces.forEach(p => {
+                    p.placed = false;
+                    p.element.classList.remove('used');
+                });
+                this.slots.forEach(s => {
+                    s.piece = null;
+                    s.element.classList.remove('correct', 'filled');
+                    const child = s.element.querySelector('.puzzle-piece');
+                    if (child) child.remove();
+                });
+                this.createPieces();
+                this.shufflePieces();
+                this.updateProgress();
+            }
+
+            showHint() {
+                const unplacedPieces = this.pieces.filter(p => !p.placed);
+                if (unplacedPieces.length === 0) {
+                    alert('已全部完成！');
+                    return;
+                }
+                const randomPiece = unplacedPieces[Math.floor(Math.random() * unplacedPieces.length)];
+                alert(`提示: 数字为 ${randomPiece.index + 1} 的碎片还没放置`);
+            }
+        }
+
+        let game;
+
+        function resetPuzzle() {
+            game.reset();
+        }
+
+        function showHint() {
+            game.showHint();
+        }
+
+        // 初始化游戏
+        window.addEventListener('DOMContentLoaded', () => {
+            game = new PuzzleGame();
+        });
+    </script>
+</body>
+</html>
